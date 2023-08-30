@@ -1,5 +1,13 @@
-### Cara
+
 
 ```{r}
-xxx
+library("forecast")
+library("graphics")
+library("TTR")
+library("TSA")
 ```
+
+```{r}
+library(rio)
+data1 <- import("https://raw.githubusercontent.com/afhkaniase/Pertemuan 1/data MPDW harga banana.csv")
+```{r}
