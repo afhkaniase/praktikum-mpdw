@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ---
 title: "Tugas 1 MPDW"
 author: "Arfiah Kania Sektiaruni"
@@ -381,3 +382,6 @@ akurasitestingdes
 ```
 
 Akurasi data uji lamda=0.2 dan gamma = 0.2 serta Lamda=0.8 dan gamma=0.4 cenderung rendah karena nilai MAPE yang tinggi. Hal ini berarti, model ini belum baik memprediksi data test.
+=======
+
+>>>>>>> 99f1500fb016ee33e2de5d8cc5cecc5a0662c0ce
