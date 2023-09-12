@@ -14,6 +14,11 @@ library(forecast)
 library(lmtest) #digunakan untuk uji formal pendeteksian autokorelasi
 library(orcutt) #untuk membuat model regresi Cochrane-Orcutt
 library(HoRM) #untuk membuat model regresi Hildreth-Lu
+library(graphics)
+library(TSA)
+library(ggplot2)
+library(RColorBrewer)
+library(scales)
 ```
 
 ## Input Data
@@ -45,6 +50,11 @@ points(databajaj.ts)
 # Membuat matriks korelasi
 library(corrplot)
 b <- cor(databajaj) 
+
+colors <- alpha(colorRampPalette(c("green", #Warna Bawah
+                                   "#dbdbdb", #Warna Tengah
+                                   "blue"))(10), #Warna Atas
+                                   alpha = 0.80) #Transparan
 
 corrplot(b, method = 'ellipse', type='lower', order='original', col=colors)
 corrplot(b, add=TRUE, method = 'number', type='upper', order='original',
@@ -267,3 +277,4 @@ Berdasarkan hasil tersebut dapat diketahui bahwa hasil penanganan autokorelasi d
 # Simpulan
 
 Autokorelasi yang terdapat pada data nilai harga saham Bajaj Finance's terjadi akibat adanya korelasi di antara unsur penyusunnya. Adanya autokorelasi menyebabkan model regresi kurang baik karena akan meingkatkan galatnya. Autokorelasi dapat dideteksi secara eksploratif melalui plot sisaan, ACF, dan PACF, serta dengan uji formal Durbin-Watson. Namun, autokorelasi tersebut dapat ditangani dengan metode Cochrane-Orcutt dan Hildreth-Lu. Kedua metode menghasilkan nilai SSE yang sama, artinya keduanya baik untuk digunakan.
+
