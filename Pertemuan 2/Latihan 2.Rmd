@@ -101,7 +101,6 @@ Dua plot di samping kiri digunakan untuk melihat apakah sisaan menyebar normal. 
 #Melihat Sisaan Menyebar Normal/Tidak
 #H0: sisaan mengikuti sebaran normal
 #H1: sisaan tidak mengikuti sebaran normal
-shapiro.test(sisaan_bajaj)
 ks.test(sisaan_bajaj, "pnorm", mean=mean(sisaan_bajaj), sd=sd(sisaan_bajaj))
 ```
 
