@@ -1,0 +1,253 @@
+---
+title: "Tugas 3 MPDW"
+author: "Arfiah Kania Sektiaruni"
+date: "2023-09-12"
+output: html_document
+---
+
+## *Packages*
+
+```{r}
+library(dLagM)
+library(dynlm)
+library(MLmetrics)
+library(lmtest)
+library(car)
+```
+
+## Impor Data
+
+```{r}
+
+# Yt = TS [Earth Skin Temperature (C)]
+# Xt = T2M [Temperature at 2 Meters (C)]
+
+library(rio)
+datatug <- Import("https://raw.githubusercontent.com/afhkaniase/praktikum-mpdw/main/Pertemuan%203/Data%20Latihan%203.csv")
+
+t <- datatug$Date
+Yt <- datatug$TS
+Xt <- datatug$T2M
+
+data3 <- data.frame(Yt,Xt)
+str(data3)
+data3
+```
+
+## Pembagian Data
+
+```{r}
+#SPLIT DATA
+data3_train<-data3[1:98,]
+data3_test<-data3[99:123,]
+```
+
+```{r}
+#data time series
+train.ts<-ts(data3_train)
+test.ts<-ts(data3_test)
+data.ts<-ts(data3)
+```
+
+## Model Koyck
+
+Model Koyck didasarkan pada asumsi bahwa semakin jauh jarak lag peubah independen dari periode sekarang maka semakin kecil pengaruh peubah lag terhadap peubah dependen.
+
+Koyck mengusulkan suatu metode untuk menduga model dinamis distributed lag dengan mengasumsikan bahwa semua koefisien $\beta$ mempunyai tanda sama.
+
+Model kyock merupakan jenis paling umum dari model infinite distributed lag dan juga dikenal sebagai geometric lag
+
+$$
+y_t=a(1-\lambda)+\beta_0X_t+\beta_1Z_t+\lambda Y_{t-1}+V_t
+$$
+
+dengan $$V_t=u_t-\lambda u_{t-1}$$
+
+### Pemodelan Model Koyck
+
+Pemodelan model Koyck dengan `R` dapat menggunakan `dLagM::koyckDlm()` . Fungsi umum dari `koyckDlm` adalah sebagai berikut.
+
+Fungsi `koyckDlm()` akan menerapkan model lag terdistribusi dengan transformasi Koyck satu prediktor. Nilai `x` dan `y` tidak perlu sebagai objek *time series* (`ts`). `intercept` dapat dibuat `TRUE` untuk memasukkan intersep ke dalam model.
+
+```{r}
+data3_model.koyck <- koyckDlm(x = data3_train$Xt, y = data3_train$Yt)
+summary(data3_model.koyck)
+AIC(data3_model.koyck)
+BIC(data3_model.koyck)
+```
+
+Dari hasil tersebut, didapat bahwa peubah $y_{t-1}$ memiliki nilai $P-Value<0.05$. Hal ini menunjukkan bahwa peubah $y_{t-1}$ berpengaruh signifikan terhadap $y$. Adapun model keseluruhannya adalah sebagai berikut
+
+$$
+\hat{Y_t} = 0.10931 + 0.04974X_t + 0.94879Y_{t-1}
+$$
+
+### Peramalan dan Akurasi Model Koyck
+
+Berikut adalah hasil peramalan y untuk 25 periode kedepan menggunakan model koyck
+
+```{r}
+fore.koyck <- forecast(model = data3_model.koyck, x=data3_test$Xt, h=25) 
+fore.koyck
+
+#akurasi data testing
+mape.koyck.test <- MAPE(fore.koyck$forecasts, data3_test$Yt)
+mape.koyck.test
+
+#akurasi data training
+mape.koyck.train <- GoF(data3_model.koyck)
+mape.koyck.train
+```
+
+Berdasarkan akurasi di atas, terlihat bahwa nilai MAPE keduanya tidak jauh berbeda. Artinya, model regresi dengan distribusi lag ini tidak  `overfitted` atau `underfitted`.
+
+## Regression with Distributed Lag
+
+Pemodelan model Regression with Distributed Lag dengan `R` dapat menggunakan `dLagM::dlm()` . Fungsi umum dari `dlm` adalah sebagai berikut.
+
+```{r, eval=FALSE, error=FALSE}
+dlm(formula , data , x , y , q , remove ) 
+```
+
+Fungsi `dlm()` akan menerapkan model lag terdistribusi dengan satu atau lebih prediktor. Nilai `x` dan `y` tidak perlu sebagai objek *time series* (`ts`). $q$ adalah integer yang mewakili panjang *lag* yang terbatas.
+
+### *Lag* Optimum Distribution Lag Model
+
+```{r}
+#penentuan lag optimum 
+finiteDLMauto(formula = Yt ~ Xt,
+              data = data.frame(data3_train),
+              model.type = "dlm", error.type = "AIC")
+```
+
+Diperoleh lag optimum untuk peubah Xt = T2M [Temperature at 2 Meters (C)] adalah 10 hari sebelumnya. Selanjutnya dilakukan pemodelan kembali dengan $q=10$
+
+### Pemodelan (Lag=10) Distribution Lag Model
+
+```{r}
+model.dlm <- dlm(x = data3_train$Xt,y = data3_train$Yt , q = 10)
+summary(model.dlm)
+AIC(model.dlm)
+BIC(model.dlm)
+```
+
+Dari hasil diatas, didapat bahwa $P-value$ dari intercept dan $x_{t}<0.05$. Hal ini menunjukkan bahwa intercept dan $x_{t}$ berpengaruh signifikan terhadap $y$. Adapun model keseluruhan yang terbentuk adalah sebagai berikut
+
+$$
+\hat{Y_t} = - 2.31919 + 0.49601X_t + 0.10451X_{t-1} + 0.10045X_{t-2} + 0.02629X_{t-3} + 0.06991X_{t-4} + 0.11779X_{t-5} + 0.03569X_{t-6} - 0.01543X_{t-7} - 0.04417X_{t-8} + 0.02276X_{t-9} + 0.16909X_{t-10} 
+$$
+
+### Peramalan dan Akurasi Distribution Lag Model
+
+Berikut merupakan hasil peramalan $y$ untuk 25 periode kedepan
+
+```{r}
+fore.dlm <- forecast(model = model.dlm, x=data3_test$Xt, h=25)
+fore.dlm
+
+#akurasi data testing
+mape.dlm.test <- MAPE(fore.dlm$forecasts, data3_test$Yt)
+mape.dlm.test
+
+#akurasi data training
+mape.dlm.train <- GoF(model.dlm)
+mape.dlm.train
+```
+
+Berdasarkan akurasi di atas, terlihat bahwa nilai MAPE antara data training dengan data testing didapatkan jauh berbeda, artinya, model regresi dengan distribution lag ini  `overfitted` .
+
+## Model Autoregressive Distributed Lag (ARDL)
+
+Peubah dependen dipengaruhi oleh peubah independen pada waktu sekarang, serta dipengaruhi juga oleh peubah dependen itu sendiri pada satu waktu yang lalu maka model tersebut disebut *autoregressive* (Gujarati 2004).
+
+### Pemodelan Autoregressive Distributed Lag
+
+Pemodelan Autoregressive dilakukan menggunakan fungsi `dLagM::ardlDlm()` . Fungsi tersebut akan menerapkan *autoregressive* berordo $(p,q)$ dengan satu prediktor. Fungsi umum dari `ardlDlm()` adalah sebagai berikut.
+
+```{r, eval=FALSE}
+ardlDlm(formula = NULL , data = NULL , x = NULL , y = NULL , p = 1 , q = 1 , 
+         remove = NULL )
+```
+
+Dengan $p$ adalah integer yang mewakili panjang *lag* yang terbatas dan $q$ adalah integer yang merepresentasikan ordo dari proses *autoregressive*.
+
+### Penentuan *Lag* Optimum untuk Autoregressive Distributed Lag
+
+```{r}
+#penentuan lag optimum
+model.ardl.opt <- ardlBoundOrders(data = data.frame(data3), ic = "AIC", 
+                                  formula = Yt ~ Xt )
+min_p=c()
+for(i in 1:15){
+  min_p[i]=min(model.ardl.opt$Stat.table[[i]])
+}
+q_opt=which(min_p==min(min_p, na.rm = TRUE))
+p_opt=which(model.ardl.opt$Stat.table[[q_opt]] == 
+              min(model.ardl.opt$Stat.table[[q_opt]], na.rm = TRUE))
+data.frame("q_optimum" = q_opt, "p_optimum" = p_opt, 
+           "AIC"=model.ardl.opt$min.Stat)
+```
+
+Dari tabel di atas, dapat terlihat bahwa nilai AIC terendah didapat ketika $p=1$ dan $q=2$, yaitu sebesar `30.82842`. Artinya, model autoregressive optimum didapat ketika $p=1$ dan $q=2$. Selanjutnya nilai ini akan dimasukkan ke dalam proses pembentukan model ardl.
+
+```{r}
+model.ardl <- ardlDlm(x = data3_train$Xt, y = data3_train$Yt, p = 1 , q = 2)
+summary(model.ardl)
+AIC(model.ardl)
+BIC(model.ardl)
+```
+
+Hasil di atas menunjukkan bahwa terdapat 4 peubah yang berpengaruh signifikan terhadap nilai T2M [Temperature at 2 Meters (C)] pada selang kepercayaan 95% yaitu peubah $x_t$, $x_{t-1}$, $y_{t-1}$, $y_{t-2}$. Artinya, menurut model ARDL dengan $p=1$ dan $q=2$, nilai T2M [Temperature at 2 Meters (C)] saat ini dipengaruhi oleh TS [Earth Skin Temperature (C)] pada saat ini, serta 8 hari sebelumnya. Model ini sangat baik dengan nilai R-Square sebesar 99.8%. Model keseluruhannya adalah sebagai berikut:
+
+$$
+\hat{Y} = 0.03384 + 0.21466X_t - 0.18353X_{t-1} + 1.42815Y_{t-1} - 0.46053Y_{t-2}
+$$
+
+### Peramalan dan Akurasi Model Autoregressive Distributed Lag
+
+```{r}
+fore.ardl <- forecast(model = model.ardl, x=data3_test$Xt, h=25)
+fore.ardl
+```
+
+Data di atas merupakan hasil peramalan untuk 25 periode ke depan menggunakan Model Autoregressive dengan $p=1$ dan $q=2$.
+
+```{r}
+#akurasi data testing
+mape.ardl.test <- MAPE(fore.ardl$forecasts, test$Yt)
+mape.ardl.test
+
+#akurasi data training
+mape.ardl.train <- GoF(model.ardl)
+mape.ardl.train
+```
+
+Berdasarkan akurasi di atas, terlihat bahwa nilai MAPE keduanya jauh berbeda. Artinya, model regresi dengan distribusi lag ini  `underfitted`. 
+
+## Perbandingan Model
+
+```{r}
+akurasi <- matrix(c(mape.koyck, mape.dlm, mape.ardl))
+row.names(akurasi)<- c("Koyck","DLM","Autoregressive")
+colnames(akurasi) <- c("MAPE")
+akurasi
+```
+
+Berdasarkan nilai MAPE, model paling optimum didapat pada *Model Koyck* karena memiliki nilai MAPE yang terkecil dibandingkan *Model DLM* dan *Model ARDL*.
+
+### Plot
+
+```{r}
+par(mfrow=c(1,1))
+plot(data3_test$Xt, data3_test$Yt, type="b", col="black")
+points(data3_test$Xt, fore.koyck$forecasts,col="red")
+lines(data3_test$Xt, fore.koyck$forecasts,col="red")
+points(data3_test$Xt, fore.dlm$forecasts,col="blue")
+lines(data3_test$Xt, fore.dlm$forecasts,col="blue")
+points(data3_test$Xt, fore.ardl$forecasts,col="green")
+lines(data3_test$Xt, fore.ardl$forecasts,col="green")
+legend("topleft",c("Aktual", "Koyck","DLM", "Autoregressive"), lty=1, col=c("black","red","blue","green"), cex=0.8)
+
+```
+
+Berdasarkan plot tersebut, terlihat bahwa model Autoregressive Distributed Lag merupakan metode yang paling sesuai untuk melakukan peramalan pada data suhu di US karena memiliki pola data aktual. Sehingga dapat disimpulkan model terbaik dalam hal ini adalah model regresi Autoregressive Distributed Lag.
