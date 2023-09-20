@@ -1,0 +1,278 @@
+---
+title: "Tugas 2 MPDW"
+author: "Arfiah Kania Sektiaruni"
+date: "2023-09-05"
+output: html_document
+---
+
+## Pemanggilan *Packages*
+
+```{r}
+library(dplyr)
+library(TTR)
+library(forecast)
+library(lmtest) #digunakan untuk uji formal pendeteksian autokorelasi
+library(orcutt) #untuk membuat model regresi Cochrane-Orcutt
+library(HoRM) #untuk membuat model regresi Hildreth-Lu
+library(graphics)
+library(TSA)
+library(ggplot2)
+library(RColorBrewer)
+library(scales)
+```
+
+## Input Data
+
+Data yang digunakan dalam kesempatan kali ini adalah data per 5 menit dari Bajaj Finance Stock Price periode 29 November - 30 November 2016.
+
+```{r}
+library(rio)
+databajaj <- import("https://raw.githubusercontent.com/afhkaniase/praktikum-mpdw/main/Data/Data%20Latihan%202.csv")
+databajaj
+
+summary(databajaj)
+```
+
+## Eksplorasi Data
+
+Sebelum melakukan regresi, akan diperlihatkan *plot time-series* dari IPM Provinsi Gorontalo Periode 2010-2021
+
+```{r}
+#Membentuk objek time series
+databajaj.ts <- ts(databajaj$close)
+
+#Membuat plot time series
+ts.plot(databajaj.ts, xlab = "Time Period",
+        ylab = "Harga Penutupan Saham", 
+        main = "Time Series Plot of Day's close price")
+points(databajaj.ts)
+
+# Membuat matriks korelasi
+library(corrplot)
+b <- cor(databajaj) 
+
+colors <- alpha(colorRampPalette(c("green", #Warna Bawah
+                                   "#dbdbdb", #Warna Tengah
+                                   "blue"))(10), #Warna Atas
+                                   alpha = 0.80) #Transparan
+
+corrplot(b, method = 'ellipse', type='lower', order='original', col=colors)
+corrplot(b, add=TRUE, method = 'number', type='upper', order='original',
+         tl.pos = "lt", 
+         tl.col = "black", col=colors)
+```
+
+## Regresi
+
+```{r}
+#Pembuatan Model Regresi
+#model regresi
+modelbajaj<- lm(databajaj$close ~ databajaj$high + databajaj$low , data = databajaj)
+summary(modelbajaj)
+```
+
+Model yang dihasilkan adalah $$y_i = 74.72386 +  0.63191X_1 + 0.28604X_2$$. Berdasarkan ringkasan model dapat diketahui bahwa hasil uji F memiliki *p-value* \< $\alpha$ (5%). Artinya, minimal terdapat satu variabel yang berpengaruh nyata terhadap model. Hasil uji-t parsial kedua parameter regresi, yaitu intersep dan koefisien regresi juga menunjukkan hal yang sama, yaitu memiliki *p-value* \< $\alpha$ (5%) sehingga nyata dalam taraf 5%. Selanjutnya dapat dilihat juga nilai $R^2=0.9474$. Artinya, sebesar 94.74% keragaman data penutupan harga saham dari Bajaj Finance's dapat dijelaskan oleh harga tinggi dan harga rendah saham Bajaj Finance's. Hasil ini menunjukkan hasil yang bagus, seolah mendapatkan hasil terbaik. Namun, kita perlu melakukan uji terhadap sisaannya seperti berikut ini.
+
+```{r}
+#sisaan dan fitted value
+sisaan_bajaj<- residuals(modelbajaj)
+fitValue_bajaj<- predict(modelbajaj)
+
+#Diagnostik dengan eksploratif
+library(ggplot2)
+par(mfrow = c(2,2))
+qqnorm(sisaan_bajaj)
+
+#Normal Q-Q plot
+qqline(sisaan_bajaj, col = "steelblue", lwd = 2)
+plot(fitValue_bajaj, sisaan_bajaj, col = "steelblue", pch = 20, xlab = "Sisaan", ylab = "Fitted Values", main = "Sisaan vs Fitted Values")
+abline(a = 0, b = 0, lwd = 2)
+
+#Histogram Sisaan
+hist(sisaan_bajaj, col = "steelblue")
+plot(seq(1,108,1), sisaan_bajaj, col = "steelblue", pch = 20, xlab = "Sisaan", ylab = "Order", main = "Sisaan vs Order")
+lines(seq(1,108,1), sisaan_bajaj, col = "red")
+abline(a = 0, b = 0, lwd = 2)
+```
+
+Dua plot di samping kiri digunakan untuk melihat apakah sisaan menyebar normal. Normal Q-Q Plot di atas menunjukkan bahwa sisaan cenderung menyebar normal, tetapi histogram dari sisaan tidak menunjukkan demikian. Selanjutnya, dua plot di samping kanan digunakan untuk melihat autokorelasi. Plot Sisaan vs *Fitted Value* dan Plot Sisaan vs *Order* menunjukkan adanya pola pada sisaan. Untuk lebih lanjut akan digunakan uji formal melihat normalitas sisaan dan plot ACF dan PACF untuk melihat apakah ada autokorelasi atau tidak.
+
+```{r}
+#Melihat Sisaan Menyebar Normal/Tidak
+#H0: sisaan mengikuti sebaran normal
+#H1: sisaan tidak mengikuti sebaran normal
+ks.test(sisaan_bajaj, "pnorm", mean=mean(sisaan_bajaj), sd=sd(sisaan_bajaj))
+```
+
+Berdasarkan uji formal Kolmogorov-Smirnov didapatkan nilai *p-value* \> $\alpha$ (5%). Artinya, cukup bukti untuk menyatakan sisaan berdistribusi normal.
+
+```{r}
+#ACF dan PACF identifikasi autokorelasi
+par(mfrow = c(1,2))
+acf(sisaan_bajaj)
+pacf(sisaan_bajaj)
+```
+
+Baik dari plot ACF maupun plot PACF, terdapat garis vertikal di lag tertentu yang melebihi tinggi garis biru horizontal. Artinya, menurut kedua plot ini, terdapat autokorelasi pada model. Namun, untuk lebih memastikan akan dilakukan uji formal dengan uji Durbin Watson.
+
+### Durbin Watson
+
+```{r}
+#Deteksi autokorelasi dengan uji-Durbin Watson
+#H0: tidak ada autokorelasi
+#H1: ada autokorelasi
+dwtest(modelbajaj)
+```
+
+Berdasarkan hasil DW Test, didapatkan nilai $DW = 1.4326$ dan *p-value* = $0.0009011$. Berdasarkan tabel Durbin-Watson diperoleh dengan $n = 108$ dan $k = 2$ sehingga nilai $DL = 1.6488$ dan $DU = 1.7241$. Nilai DW tidak berada di antara nilai DL dan DU. Artinya, berada di daerah di daerah autokorelasi positif. Namun, dengan nilai *p-value* \< 0.05 dapat disimpulkan bahwa tolak H0, cukup bukti mengatakan adanya autokorelasi pada galat menurut uji Durbin-Watson.
+
+### Breusch-Godfrey Test
+
+```{r}
+bgtest(databajaj$close ~ databajaj$high + databajaj$low, data=databajaj, order=1)
+```
+
+Dari hasil uji di atas, dapat terlihat bahwa nilai p-value \< 0.05, sehingga tolak H0. Artinya, ada autokorelasi pada galat menurut uji Breusch-Godfrey.
+
+### Runs Test
+
+```{r}
+lawstat::runs.test(resid(modelbajaj), alternative = 'two.sided')
+```
+
+Dari hasil uji di atas, dapat terlihat bahwa nilai p-value \> 0.05, sehingga terima H0. Artinya, tidak ada autokorelasi pada galat menurut uji Runs.
+
+Dari ketiga uji di atas, masih terdapat dua uji yaitu uji Durbin-Watson dan Breusch-Godfrey Test yang menolak H0 atau menyatakan bahwa ada autokorelasi pada galat. Oleh karena itu, diperlukan penangan autokorelasi. Penanganan yang akan digunakan menggunakan dua metode, yaitu Cochrane-Orcutt dan Hildret-Lu.
+
+## Penanganan Autokorelasi
+
+### Metode Cochrane-Orcutt
+
+```{r}
+#Penanganan Autokorelasi Cochrane-Orcutt
+modelbajajCO<-cochrane.orcutt(modelbajaj)
+modelbajajCO
+```
+
+Hasil keluaran model setelah dilakukan penanganan adalah sebagai berikut. $$y_i = 56.087043 + 0.602942X_t + 0.335450X_(t-1)$$. Hasil juga menunjukkan bahwa nilai DW dan p-value meningkat menjadi $1.99129$ dan $0.4367$. Nilai DW berada pada rentang DU \< DW \< 4-DU atau $1.7241 < DW < 2.2759$. Hal tersebut juga didukung dengan nilai *p-value* \> 0.05, artinya belum cukup bukti menyatakan bahwa sisaan terdapat autokorelasi pada taraf nyata 5%. Untuk nilai $ρ ̂$ optimum yang digunakan adalah $0.226793$. Nilai tersebut dapat diketahui dengan *syntax* berikut.
+
+```{r}
+#Rho optimum
+rho<- modelbajajCO$rho
+rho
+```
+
+Selanjutnya akan dilakukan transformasi secara manual dengan syntax berikut ini.
+
+```{r}
+#Transformasi Manual
+X1.trans<- databajaj$high[-1]-databajaj$high[-108]*rho
+X2.trans<- databajaj$low[-1]-databajaj$low[-108]*rho
+Y.trans <- databajaj$close[-1]-databajaj$close[-108]*rho
+modelbajajCOmanual<- lm(Y.trans~X1.trans + X2.trans)
+summary(modelbajajCOmanual)
+```
+
+Hasil model transformasi bukan merupakan model sesungguhnya. Koefisien regresi masih perlu dicari kembali mengikuti $β_0^*=β_0+ρ ̂β_0$ dan $β_1^*=β_1$.
+
+```{r}
+#Mencari Penduga Koefisien Regresi setelah Transformasi ke Persamaan Awal
+b0bajaj_bintang <- modelbajajCOmanual$coefficients[1]
+
+b0bajaj <- b0bajaj_bintang/(1-rho)
+b0bajaj
+
+b1bajaj <- modelbajajCOmanual$coefficients[2]
+b1bajaj
+
+b2bajaj <- modelbajajCOmanual$coefficients[3]
+b2bajaj
+```
+
+Hasil perhitungan koefisien regresi tersebut akan menghasilkan hasil yang sama dengan model yang dihasilkan menggunakan *packages*.
+
+### Metode Hildreth-Lu
+
+Penanganan kedua adalah menggunakan metode Hildreth-Lu. Metode ini akan mencari nilai SSE terkecil dan dapat dicari secara manual maupun menggunakan packages. Jika menggunakan packages, gunakan `library` *packages* `HORM`.
+
+```{r}
+#Penanganan Autokorelasi Hildreth lu
+# Hildreth-Lu
+hildreth.lu.func<- function(r, model){
+  x1 <- model.matrix(modelbajaj)[,2]
+  x2 <- model.matrix(modelbajaj)[,3]
+
+  y <- model.response(model.frame(modelbajaj))
+  n <- length(y)
+  t <- 2:n
+  
+  y <- y[t]-r*y[t-1]
+  x1 <- x1[t]-r*x1[t-1]
+  x2 <- x2[t]-r*x2[t-1]
+  
+  return(lm(y~x1+x2))
+}
+
+#Pencariab rho yang meminimumkan SSE
+r <- c(seq(0.1,0.9, by= 0.1))
+tab <- data.frame("rho" = r, "SSE" = sapply(r, function(i){deviance(hildreth.lu.func(i, modelbajaj))}))
+round(tab, 4)
+```
+
+Pertama-tama akan dicari di mana kira-kira $ρ$ yang menghasilkan SSE minimum. Pada hasil di atas terlihat $ρ$ minimum ketika 0.2. Namun, hasil tersebut masih kurang teliti sehingga akan dicari kembali $ρ$ yang lebih optimum dengan ketelitian yang lebih. Jika sebelumnya jarak antar $ρ$ yang dicari adalah 0.1, kali ini jarak antar $ρ$ adalah 0.001 dan dilakukan pada selang 0.2 sampai dengan 0.5.
+
+```{r}
+#Rho optimal di sekitar 0.4
+rOpt <- seq(0.2,0.5, by= 0.001)
+tabOpt <- data.frame("rho" = rOpt, "SSE" = sapply(rOpt, function(i){deviance(hildreth.lu.func(i, modelbajaj))}))
+head(tabOpt[order(tabOpt$SSE),])
+
+#Grafik SSE optimum
+par(mfrow = c(1,1))
+plot(tab$SSE ~ tab$rho , type = "l", xlab = "Rho", ylab = "SSE")
+abline(v = tabOpt[tabOpt$SSE==min(tabOpt$SSE),"rho"], lty = 2, col="red",lwd=2)
+text(x=0.227, y=110.3454, labels = "rho=0.227", cex = 0.8)
+```
+
+Perhitungan yang dilakukan aplikasi `R` menunjukkan bahwa nilai $ρ$ optimum, yaitu saat SSE terkecil terdapat pada nilai $ρ=0.227$. Hal tersebut juga ditunjukkan pada plot. Selanjutnya, model dapat didapatkan dengan mengevaluasi nilai $ρ$ ke dalam fungsi `hildreth.lu.func`, serta dilanjutkan dengan pengujian autokorelasi dengan uji Durbin-Watson. Namun, setelah pengecekan tersebut tidak lupa koefisien regresi tersebut digunakan untuk transformasi balik. Persamaan hasil transformasi itulah yang menjadi persamaan sesungguhnya.
+
+```{r}
+#Model terbaik
+modelbajajHL <- hildreth.lu.func(0.227, modelbajaj)
+summary(modelbajajHL)
+
+#Transformasi Balik
+cat("y = ", coef(modelbajajHL)[1]/(1-0.227), "+", coef(modelbajajHL)[2],"x1","+", coef(modelbajajHL)[3],"x2", sep = "")
+```
+
+Setelah dilakukan tranformasi balik, didapatkan model dengan metode Hildreth-Lu sebagai berikut. $$y_i = 56.09308 + 0.6029621X_t + 0.3354232X_(t-1)$$
+
+```{r}
+#Deteksi autokorelasi
+dwtest(modelbajajHL)
+```
+
+Hasil uji Durbin-Watson juga menunjukkan bawah nilai DW sebesar $1.9917$ berada pada selang daerah tidak ada autokorelasi, yaitu pada rentang DU \< DW \< 4-DU atau $1.7241 < DW < 2.2759$. Hal tersebut juga didukung oleh *p-value* sebesar $0.4375$, di mana *p-value* \> $\alpha$=5%. Artinya tak tolak $H_0$ atau belum cukup bukti menyatakan bahwa ada autokorelasi dalam data nilai harga saham Bajaj Finance's dengan metode Hildreth-Lu pada taraf nyata 5%.
+
+Terakhir, akan dibandingkan nilai SSE dari ketiga metode (metode awal, metode Cochrane-Orcutt, dan Hildreth-Lu).
+
+```{r}
+#Perbandingan
+sseModelbajajawal <- anova(modelbajaj)$`Sum Sq`[-c(1,2)]
+sseModelbajajCO <- anova(modelbajajCOmanual)$`Sum Sq`[-c(1,2)]
+sseModelbajajHL <- anova(modelbajajHL)$`Sum Sq`[-c(1,2)]
+mseModelbajajawal <- sseModelbajajawal/length(databajaj$close)
+mseModelbajajCO <- sseModelbajajCO/length(databajaj$close)
+mseModelbajajHL <- sseModelbajajHL/length(databajaj$close)
+akurasibajaj <- matrix(c(sseModelbajajawal,sseModelbajajCO,sseModelbajajHL,
+                    mseModelbajajawal,mseModelbajajCO,mseModelbajajHL),nrow=2,ncol=3,byrow = TRUE)
+colnames(akurasibajaj) <- c("Model Awal", "Model Cochrane-Orcutt", "Model Hildreth-Lu")
+row.names(akurasibajaj) <- c("SSE","MSE")
+akurasibajaj
+```
+
+Berdasarkan hasil tersebut dapat diketahui bahwa hasil penanganan autokorelasi dengan metode Cochrane-Orcutt dan Hildreth-Lu memiliki SSE yang sama, sebesar $110.3454$ dan lebih baik dibandingkan model awal ketika autokorelasi masih terjadi, yaitu sebesar $126.082954$.
+
+# Simpulan
+
+Autokorelasi yang terdapat pada data nilai harga saham Bajaj Finance's terjadi akibat adanya korelasi di antara unsur penyusunnya. Adanya autokorelasi menyebabkan model regresi kurang baik karena akan meingkatkan galatnya. Autokorelasi dapat dideteksi secara eksploratif melalui plot sisaan, ACF, dan PACF, serta dengan uji formal Durbin-Watson. Namun, autokorelasi tersebut dapat ditangani dengan metode Cochrane-Orcutt dan Hildreth-Lu. Kedua metode menghasilkan nilai SSE yang sama, artinya keduanya baik untuk digunakan.
