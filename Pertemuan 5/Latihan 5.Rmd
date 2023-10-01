@@ -1,1 +1,184 @@
-p
+---
+title: "Responsi 5 MPDW"
+author: "Arfiah Kania Sektiaruni"
+date: "2023-09-21"
+output: html_document
+---
+
+## Packages
+
+```{r}
+library(ggplot2)
+library(tsibble)
+library(tseries)
+library(MASS)
+```
+
+## Impor Data
+
+```{r}
+datalat5 <- rio::import("https://raw.githubusercontent.com/afhkaniase/praktikum-mpdw/main/Data/Data%20Temperatur%20Portugal%202023.csv")
+str(datalat5)
+head(datalat5)
+```
+
+## Mengubah data agar terbaca sebagai data deret waktu dengan fungsi `ts()` .
+
+```{r}
+datalat5.ts <- ts(datalat5$Temperature)
+datalat5.ts
+```
+
+### Plot *Time Series*
+
+```{r}
+ts.plot(datalat5.ts, xlab="Periode", ylab="Temperatur", 
+        main = "Time Series Plot")
+points(datalat5.ts)
+
+mean(datalat5.ts)
+var(datalat5.ts)
+```
+
+Berdasarkan plot time series tersebut, terlihat bahwa data tidak stasioner dalam rataan, ditandai dengan adanya trend pada data dan tidak stasioner dalam ragam, ditandai dengan adanya perbedaan lebar pita pada plot.
+
+### Plot ACF
+
+```{r}
+acf(datalat5.ts)
+```
+
+Berdasarkan plot ACF, terlihat bahwa plot ACF pada data tersebut menurun secara perlahan (*tails off slowly*) yang menandakan data tidak stasioner dalam rataan.
+
+### Uji ADF
+
+```{r}
+tseries::adf.test(datalat5.ts)
+```
+
+$H_0$ : Data tidak stasioner dalam rataan
+$H_1$ : Data stasioner dalam rataan
+
+Berdasarkan uji ADF tersebut, didapat *p-value* sebesar 0.02419 yang lebih kecil dari taraf nyata 5% sehingga tolak $H_0$ dan menandakan bahwa data stasioner dalam rataan. Hal ini tidak sesuai dengan hasil eksplorasi menggunakan plot time series.
+
+### Plot Box-Cox
+
+```{r}
+index <- seq(1:212)
+bc = boxcox(datalat5.ts~index, lambda = seq(0,4,by=0.01))
+#Nilai Rounded Lambda
+lambda <- bc$x[which.max(bc$y)]
+lambda
+#SK
+bc$x[bc$y > max(bc$y) - 1/2 * qchisq(.95,1)]
+```
+
+Gambar di atas menunjukkan nilai *rounded value* ($\lambda$) optimum sebesar **1.49** dan pada selang kepercayaan 95% nilai memiliki batas bawah **1.19** dan batas atas **1.80**. Selang tersebut tidak memuat nilai satu sehingga dapat dikatakan bahwa data temperatur tidak stasioner dalam ragam.
+
+### Partisi Data
+
+#### Bagian 1
+
+```{r}
+dt_stas1 <- datalat5.ts[1:104] |> ts()
+mean(dt_stas1)
+var(dt_stas1)
+```
+
+#### Plot Time Series
+
+```{r}
+dt_stas1 |> as_tsibble() |> 
+  ggplot(aes(x = index, y = value)) +
+  geom_line() + theme_bw() +
+  xlab("Obs") + ylab("Nilai")
+```
+
+Berdasarkan plot time series tersebut, terlihat bahwa data tidak stasioner dalam rataan karena masih terdapat tren pada data, namun cenderung stasioner dalam ragam karena memiliki lebar pita yang cenderung sama.
+
+#### Plot ACF
+
+```{r}
+acf(dt_stas1)
+```
+
+Berdasarkan plot ACF, terlihat bahwa plot ACF pada data tersebut menurun secara perlahan (*tails off slowly*) yang menandakan data tidak stasioner dalam rataan
+
+#### Uji ADF
+
+```{r}
+tseries::adf.test(dt_stas1)
+```
+
+$H_0$ : Data tidak stasioner dalam rataan
+
+$H_1$ : Data stasioner dalam rataan
+
+Berdasarkan uji ADF tersebut, didapat *p-value* sebesar 0.2873 yang lebih besar dari taraf nyata 5% sehingga tidak tolak $H_0$ dan menandakan bahwa data tidak stasioner dalam rataan. Hal ini sesuai dengan hasil eksplorasi menggunakan plot time series dan plot ACF.
+
+#### Plot Boxcox
+
+```{r}
+index <- seq(1:104)
+bc = boxcox(dt_stas1~index, lambda = seq(-2,6,by=1))
+#Nilai Rounded Lambda
+lambda <- bc$x[which.max(bc$y)]
+lambda
+#SK
+bc$x[bc$y > max(bc$y) - 1/2 * qchisq(.95,1)]
+```
+
+Gambar di atas menunjukkan nilai *rounded value* ($\lambda$) optimum sebesar **1.31** dan pada selang kepercayaan 95% nilai memiliki batas bawah **0.59** dan batas atas **2.04**. Selang tersebut memuat nilai satu sehingga dapat dikatakan bahwa data partisi bagian pertama stasioner dalam ragam.
+
+#### Bagian 2
+
+```{r}
+dt_stas2 <- datalat5.ts[105:212] |> ts()
+mean(dt_stas2)
+var(dt_stas2)
+```
+
+#### Plot Time Series
+
+```{r}
+dt_stas2 |> as_tsibble() |> 
+  ggplot(aes(x = index, y = value)) +
+  geom_line() + theme_bw() +
+  xlab("Obs") + ylab("Nilai")
+```
+
+Berdasarkan plot time series tersebut, terlihat bahwa data tidak stasioner dalam rataan karena masih terdapat tren pada data, namun cenderung stasioner dalam ragam karena memiliki lebar pita yang cenderung sama.
+
+#### Plot ACF
+
+```{r}
+acf(dt_stas2)
+```
+
+Berdasarkan plot ACF, terlihat bahwa plot ACF pada data tersebut menurun secara perlahan (*tails off slowly*) yang menandakan data tidak stasioner dalam rataan.
+
+#### Uji ADF
+
+```{r}
+adf.test(dt_stas2)
+```
+
+$H_0$ : Data tidak stasioner dalam rataan
+
+$H_1$ : Data stasioner dalam rataan
+
+Berdasarkan uji ADF tersebut, didapat *p-value* sebesar 0.01414 yang lebih kecil dari taraf nyata 5% sehingga tolak $H_0$ dan menandakan bahwa data stasioner dalam rataan. Hal ini tidak sesuai dengan hasil eksplorasi menggunakan plot time series dan plot ACF.
+
+#### Plot Boxcox
+
+```{r}
+index <- seq(105:212)
+bc = boxcox(dt_stas2~index, lambda = seq(0,6,by=1))
+#Nilai Rounded Lambda
+lambda <- bc$x[which.max(bc$y)]
+lambda
+#SK
+bc$x[bc$y > max(bc$y) - 1/2 * qchisq(.95,1)]
+```
+
+Gambar di atas menunjukkan nilai *rounded value* ($\lambda$) optimum sebesar **0.36** dan pada selang kepercayaan 95% nilai memiliki batas bawah **0.00** dan batas atas **1.52**. Selang tersebut memuat nilai satu sehingga dapat dikatakan bahwa data partisi bagian kedua stasioner dalam ragam.
