@@ -80,7 +80,7 @@ Gambar di atas menunjukkan nilai *rounded value* ($\lambda$) optimum sebesar **1
 #### Bagian 1
 
 ```{r}
-dt_stas1 <- datalat5.ts[1:104] |> ts()
+dt_stas1 <- datalat5.ts[1:123] |> ts()
 mean(dt_stas1)
 var(dt_stas1)
 ```
@@ -114,13 +114,13 @@ $H_0$ : Data tidak stasioner dalam rataan
 
 $H_1$ : Data stasioner dalam rataan
 
-Berdasarkan uji ADF tersebut, didapat *p-value* sebesar 0.2873 yang lebih besar dari taraf nyata 5% sehingga tidak tolak $H_0$ dan menandakan bahwa data partisi bagian pertama tidak stasioner dalam rataan. Hal ini sesuai dengan hasil eksplorasi menggunakan plot time series dan plot ACF.
+Berdasarkan uji ADF tersebut, didapat *p-value* sebesar 0.09818 yang lebih besar dari taraf nyata 5% sehingga tidak tolak $H_0$ dan menandakan bahwa data partisi bagian pertama tidak stasioner dalam rataan. Hal ini sesuai dengan hasil eksplorasi menggunakan plot time series dan plot ACF.
 
 #### Plot Boxcox
 
 ```{r}
-index <- seq(1:104)
-bc = boxcox(dt_stas1~index, lambda = seq(-1,6,by=1))
+index <- seq(1:123)
+bc = boxcox(dt_stas1~index, lambda = seq(-1,4,by=1))
 #Nilai Rounded Lambda
 lambda <- bc$x[which.max(bc$y)]
 lambda
@@ -128,12 +128,12 @@ lambda
 bc$x[bc$y > max(bc$y) - 1/2 * qchisq(.95,1)]
 ```
 
-Gambar di atas menunjukkan nilai *rounded value* ($\lambda$) optimum sebesar **1.31** dan pada selang kepercayaan 95% nilai memiliki batas bawah **0.59** dan batas atas **2.04**. Selang tersebut memuat nilai satu sehingga dapat dikatakan bahwa data partisi bagian pertama stasioner dalam ragam.
+Gambar di atas menunjukkan nilai *rounded value* ($\lambda$) optimum sebesar **0.8686869** dan pada selang kepercayaan 95% nilai memiliki batas bawah **0.3636364** dan batas atas **1.3232323**. Selang tersebut memuat nilai satu sehingga dapat dikatakan bahwa data partisi bagian pertama stasioner dalam ragam.
 
 #### Bagian 2
 
 ```{r}
-dt_stas2 <- datalat5.ts[105:212] |> ts()
+dt_stas2 <- datalat5.ts[1:201] |> ts()
 mean(dt_stas2)
 var(dt_stas2)
 ```
@@ -167,13 +167,13 @@ $H_0$ : Data tidak stasioner dalam rataan
 
 $H_1$ : Data stasioner dalam rataan
 
-Berdasarkan uji ADF tersebut, didapat *p-value* sebesar 0.01414 yang lebih kecil dari taraf nyata 5% sehingga tolak $H_0$ dan menandakan bahwa data partisi bagian kedua stasioner dalam rataan. Hal ini tidak sesuai dengan hasil eksplorasi menggunakan plot time series dan plot ACF.
+Berdasarkan uji ADF tersebut, didapat *p-value* sebesar 0.02004 yang lebih kecil dari taraf nyata 5% sehingga tolak $H_0$ dan menandakan bahwa data partisi bagian kedua stasioner dalam rataan. Hal ini tidak sesuai dengan hasil eksplorasi menggunakan plot time series dan plot ACF.
 
 #### Plot Boxcox
 
 ```{r}
-index <- seq(105:212)
-bc = boxcox(dt_stas2~index, lambda = seq(0,6,by=1))
+index <- seq(1:201)
+bc = boxcox(dt_stas2~index, lambda = seq(0,4,by=1))
 #Nilai Rounded Lambda
 lambda <- bc$x[which.max(bc$y)]
 lambda
@@ -181,4 +181,4 @@ lambda
 bc$x[bc$y > max(bc$y) - 1/2 * qchisq(.95,1)]
 ```
 
-Gambar di atas menunjukkan nilai *rounded value* ($\lambda$) optimum sebesar **0.36** dan pada selang kepercayaan 95% nilai memiliki batas bawah **0.00** dan batas atas **1.52**. Selang tersebut memuat nilai satu sehingga dapat dikatakan bahwa data partisi bagian kedua stasioner dalam ragam.
+Gambar di atas menunjukkan nilai *rounded value* ($\lambda$) optimum sebesar **1.414141** dan pada selang kepercayaan 95% nilai memiliki batas bawah **1.090909** dan batas atas **1.696970**. Selang tersebut tidak memuat nilai satu sehingga dapat dikatakan bahwa data partisi bagian kedua tidak stasioner dalam ragam.
