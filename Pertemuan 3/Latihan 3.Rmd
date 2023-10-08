@@ -214,7 +214,7 @@ Data di atas merupakan hasil peramalan untuk 25 periode ke depan menggunakan Mod
 
 ```{r}
 #akurasi data testing
-mape.ardl.test <- MAPE(fore.ardl$forecasts, test$Yt)
+mape.ardl.test <- MAPE(fore.ardl$forecasts, data3_test$Yt)
 mape.ardl.test
 
 #akurasi data training
@@ -227,7 +227,7 @@ Berdasarkan akurasi di atas, terlihat bahwa nilai MAPE keduanya jauh berbeda. Ar
 ## Perbandingan Model
 
 ```{r}
-akurasi <- matrix(c(mape.koyck, mape.dlm, mape.ardl))
+akurasi <- matrix(c(mape.koyck.test, mape.dlm.test, mape.ardl.test))
 row.names(akurasi)<- c("Koyck","DLM","Autoregressive")
 colnames(akurasi) <- c("MAPE")
 akurasi
