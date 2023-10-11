@@ -81,7 +81,7 @@ acf(ma2.train, main="ACF", lag.max=20)
 
 Berdasarkan plot ACF di atas, pada data tersebut menurun secara perlahan (*tails off slowly*) yang menandakan data tidak stasioner dalam rataan.
 
-### Plot ADF
+### Uji ADF
 
 ```{r}
 adf.test(ma2.train) 
@@ -114,7 +114,7 @@ Plot Boxcox menunjukkan nilai *rounded value* ($\lambda$) optimum sebesar **1.44
 
 ```{r}
 train.diff1<-diff(train.ts,differences = 1) 
-plot.ts(train.diff, lty=1, xlab="Periode", ylab="Data Difference 1 Temperature", main="Plot Difference Temperature Portugal")
+plot.ts(train.diff1, lty=1, xlab="Periode", ylab="Data Difference 1 Temperature", main="Plot Difference Temperature Portugal")
 ```
 
 Berdasarkan plot data deret waktu, terlihat bahwa data sudah stasioner dalam rataan ditandai dengan data bergerak pada nilai tengah tertentu (tidak terdapat trend ataupun musiman pada data).
@@ -147,7 +147,7 @@ Berdasarkan uji ADF tersebut, didapat *p-value* sebesar 0.01 yang lebih kecil da
 acf(train.diff1)
 ```
 
-Berdasarkan plot tersebut, terlihat bahwa plot ACF cenderung *cuts off* pada lag ke 2, maka model tentatifnya adalah MA(2).
+Berdasarkan plot tersebut, terlihat bahwa plot ACF cenderung *cuts off* pada lag ke 2, sehingga jika plot PACF dianggap *tails of*, maka model tentatifnya adalah ARIMA(0,1,2).
 
 ### Plot PACF
 
@@ -155,7 +155,7 @@ Berdasarkan plot tersebut, terlihat bahwa plot ACF cenderung *cuts off* pada lag
 pacf(train.diff1)
 ```
 
-Berdasarkan plot tersebut, terlihat bahwa plot PACF cenderung *cuts off* pada lag ke 2, maka model tentatifnya adalah AR(2).
+Berdasarkan plot tersebut, terlihat bahwa plot PACF cenderung *cuts off* pada lag ke 2, sehingga jika plot ACF dianggap *tails of*, maka model tentatifnya adalah ARIMA(2,1,0).
 
 Jika baik plot ACF maupun plot PACF keduanya dianggap tails of, maka model yang terbentuk adalah ARIMA(2,1,2)
 
