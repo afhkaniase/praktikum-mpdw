@@ -49,6 +49,8 @@ summary(datampdw.ts)
 ts.plot(datampdw.ts, xlab="Periode", ylab="Temperatur", 
         main = "Time Series Plot")
 points(datampdw.ts)
+
+#Pola data trend
 ```
 
 ### Membagi data per bulan
@@ -160,7 +162,7 @@ Selanjutnya akan dilakukan peramalan sejumlah data uji yaitu 42 periode. Pada me
 ```{r}
 data.gabungan<-cbind(aktual=c(train_ma.ts,rep(NA,43)),pemulusan=c(data.sma,rep(NA,43)),ramalan=c(data.ramalan,rep(data.ramalan[length(data.ramalan)],42)))
 
-data.gabungan #forecast 42 periode ke depan
+head(data.gabungan) #forecast 42 periode ke depan
 ```
 
 Plot deret waktu data peramalan
@@ -177,10 +179,10 @@ Selanjutnya perhitungan akurasi dilakukan dengan ukuran akurasi **Sum Squares Er
 
 ```{r}
 #Menghitung nilai keakuratan data latih
-error_train.sma = training.ts-data.ramalan[1:length(training.ts)]
-SSE_train.sma = sum(error_train.sma[15:length(training.ts)]^2)
-MSE_train.sma = mean(error_train.sma[15:length(training.ts)]^2)
-MAPE_train.sma = mean(abs((error_train.sma[15:length(training.ts)]/training.ts[15:length(training.ts)])*100))
+error_train.sma = train_ma.ts-data.ramalan[1:length(train_ma.ts)]
+SSE_train.sma = sum(error_train.sma[15:length(train_ma.ts)]^2)
+MSE_train.sma = mean(error_train.sma[15:length(train_ma.ts)]^2)
+MAPE_train.sma = mean(abs((error_train.sma[15:length(train_ma.ts)]/train_ma.ts[15:length(train_ma.ts)])*100))
 akurasi_train.sma <- matrix(c(SSE_train.sma, MSE_train.sma, MAPE_train.sma))
 row.names(akurasi_train.sma)<- c("SSE", "MSE", "MAPE")
 colnames(akurasi_train.sma) <- c("Akurasi m = 6")
@@ -273,7 +275,7 @@ Dapat diketahui bahwa pada data latih, metode SMA lebih baik dibandingkan dengan
 
 ```{r}
 #Lamda=0.2 dan gamma=0.2
-des.1<- HoltWinters(train.ts, gamma = FALSE, beta = 0.2, alpha = 0.2)
+des.1<- HoltWinters(train_ma.ts, gamma = FALSE, beta = 0.3, alpha = 0.3)
 plot(des.1)
 
 #ramalan
@@ -281,7 +283,7 @@ ramalandes1<- forecast(des.1, h=43)
 ramalandes1
 
 #Lamda=0.8 dan gamma=0.4
-des.2<- HoltWinters(train.ts, gamma = FALSE, beta = 0.4, alpha = 0.8)
+des.2<- HoltWinters(train_ma.ts, gamma = FALSE, beta = 0.4, alpha = 0.8)
 plot(des.2)
 
 #ramalan
@@ -302,7 +304,7 @@ Untuk mendapatkan nilai parameter optimum dari DES, argumen `alpha` dan `beta` d
 
 ```{r}
 #Lamda dan gamma optimum
-des.opt<- HoltWinters(train.ts, gamma = FALSE)
+des.opt<- HoltWinters(train_ma.ts, gamma = FALSE)
 des.opt
 plot(des.opt)
 
@@ -318,25 +320,25 @@ Selanjutnya akan dilakukan perhitungan akurasi pada data latih maupun data uji d
 ```{r}
 #Akurasi Data Training
 ssedes.train1<-des.1$SSE
-msedes.train1<-ssedes.train1/length(train.ts)
+msedes.train1<-ssedes.train1/length(train_ma.ts)
 sisaandes1<-ramalandes1$residuals
 head(sisaandes1)
 
-mapedes.train1 <- sum(abs(sisaandes1[3:length(train.ts)]/train.ts[3:length(train.ts)])
-                      *100)/length(train.ts)
+mapedes.train1 <- sum(abs(sisaandes1[3:length(train_ma.ts)]/train_ma.ts[3:length(train_ma.ts)])
+                      *100)/length(train_ma.ts)
 
 akurasides.1 <- matrix(c(ssedes.train1,msedes.train1,mapedes.train1))
 row.names(akurasides.1)<- c("SSE", "MSE", "MAPE")
-colnames(akurasides.1) <- c("Akurasi lamda=0.2 dan gamma=0.2")
+colnames(akurasides.1) <- c("Akurasi lamda=0.3 dan gamma=0.3")
 akurasides.1
 
 ssedes.train2<-des.2$SSE
-msedes.train2<-ssedes.train2/length(train.ts)
+msedes.train2<-ssedes.train2/length(train_ma.ts)
 sisaandes2<-ramalandes2$residuals
 head(sisaandes2)
 
-mapedes.train2 <- sum(abs(sisaandes2[3:length(train.ts)]/train.ts[3:length(train.ts)])
-                      *100)/length(train.ts)
+mapedes.train2 <- sum(abs(sisaandes2[3:length(train_ma.ts)]/train_ma.ts[3:length(train_ma.ts)])
+                      *100)/length(train_ma.ts)
 
 akurasides.2 <- matrix(c(ssedes.train2,msedes.train2,mapedes.train2))
 row.names(akurasides.2)<- c("SSE", "MSE", "MAPE")
@@ -350,26 +352,26 @@ Hasil akurasi dari data latih didapatkan skenario 2 dengan lamda=0.8 dan gamma=0
 
 ```{r}
 #Akurasi Data Testing
-selisihdes1<-ramalandes1$mean-testing$temp
+selisihdes1<-ramalandes1$mean-testing_ma$Temperature
 selisihdes1
 
 SSEtestingdes1<-sum(selisihdes1^2)
-MSEtestingdes1<-SSEtestingdes1/length(testing$temp)
-MAPEtestingdes1<-sum(abs(selisihdes1/testing$temp)*100)/length(testing$temp)
+MSEtestingdes1<-SSEtestingdes1/length(testing_ma$Temperature)
+MAPEtestingdes1<-sum(abs(selisihdes1/testing_ma$Temperature)*100)/length(testing_ma$Temperature)
 
-selisihdes2<-ramalandes2$mean-testing$temp
+selisihdes2<-ramalandes2$mean-testing_ma$Temperature
 selisihdes2
 
 SSEtestingdes2<-sum(selisihdes2^2)
-MSEtestingdes2<-SSEtestingdes2/length(testing$temp)
-MAPEtestingdes2<-sum(abs(selisihdes2/testing$temp)*100)/length(testing$temp)
+MSEtestingdes2<-SSEtestingdes2/length(testing_ma$Temperature)
+MAPEtestingdes2<-sum(abs(selisihdes2/testing_ma$Temperature)*100)/length(testing_ma$Temperature)
 
-selisihdesopt<-ramalandesopt$mean-testing$temp
+selisihdesopt<-ramalandesopt$mean-testing_ma$Temperature
 selisihdesopt
 
 SSEtestingdesopt<-sum(selisihdesopt^2)
-MSEtestingdesopt<-SSEtestingdesopt/length(testing$temp)
-MAPEtestingdesopt<-sum(abs(selisihdesopt/testing$temp)*100)/length(testing$temp)
+MSEtestingdesopt<-SSEtestingdesopt/length(testing_ma$Temperature)
+MAPEtestingdesopt<-sum(abs(selisihdesopt/testing_ma$Temperature)*100)/length(testing_ma$Temperature)
 
 akurasitestingdes <-
   matrix(c(SSEtestingdes1,MSEtestingdes1,MAPEtestingdes1,SSEtestingdes2,MSEtestingdes2,
